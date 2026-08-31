@@ -21,7 +21,6 @@ from .downloader import (
 from .models import HubSource, destination_for, parse_huggingface_source
 
 
-APP_DIR = Path(__file__).resolve().parent.parent
 WEB_DIR = Path(__file__).resolve().parent / "web"
 DEFAULT_DESTINATION = Path.home() / "Downloads" / "HuggingFace"
 DEFAULT_SETTINGS: dict[str, Any] = {
@@ -41,7 +40,7 @@ def _settings_file() -> Path:
     base = os.environ.get("LOCALAPPDATA")
     if base:
         return Path(base) / "HF Downloader" / "settings.json"
-    return APP_DIR / "settings.json"
+    return Path.home() / ".hf-downloader" / "settings.json"
 
 
 def _bounded_int(value: object, default: int, minimum: int, maximum: int) -> int:
@@ -53,16 +52,13 @@ def _bounded_int(value: object, default: int, minimum: int, maximum: int) -> int
 
 def load_settings(path: Path | None = None) -> dict[str, Any]:
     target = path or _settings_file()
-    candidates = (target, APP_DIR / "settings.json") if target != APP_DIR / "settings.json" else (target,)
     stored: dict[str, Any] = {}
-    for candidate in candidates:
-        try:
-            value = json.loads(candidate.read_text(encoding="utf-8"))
-            if isinstance(value, dict):
-                stored = value
-                break
-        except (FileNotFoundError, json.JSONDecodeError, OSError):
-            continue
+    try:
+        value = json.loads(target.read_text(encoding="utf-8"))
+        if isinstance(value, dict):
+            stored = value
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        pass
 
     settings = DEFAULT_SETTINGS | stored
     settings["settings_version"] = 3
@@ -111,7 +107,7 @@ class DesktopApi:
         return {
             "settings": load_settings(),
             "transports": [{"value": key, "label": label} for key, label in TRANSPORT_LABELS.items()],
-            "version": "1.1.1",
+            "version": "1.1.2",
         }
 
     def inspect_source(self, value: str, repo_type: str = "auto", token: str = "") -> dict[str, Any]:

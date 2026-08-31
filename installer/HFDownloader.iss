@@ -1,5 +1,5 @@
 #define AppName "HF Downloader"
-#define AppVersion "1.1.1"
+#define AppVersion "1.1.2"
 #define AppPublisher "HF Downloader"
 #define AppExeName "HF Downloader.exe"
 
@@ -9,6 +9,7 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
 DefaultDirName={autopf}\HF Downloader
+DisableDirPage=no
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir=..\release

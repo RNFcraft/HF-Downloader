@@ -6,7 +6,15 @@ $pythonExe = Join-Path $projectDir ".venv\Scripts\python.exe"
 Set-Location -LiteralPath $projectDir
 
 if (-not (Test-Path -LiteralPath $pythonExe)) {
-    throw "Run Install-and-Run.bat first to create .venv."
+    $systemPython = Get-Command python.exe -ErrorAction SilentlyContinue
+    if (-not $systemPython) { $systemPython = Get-Command py.exe -ErrorAction SilentlyContinue }
+    if (-not $systemPython) { throw "Python 3.10 or newer was not found." }
+    if ($systemPython.Name -eq "py.exe") {
+        & $systemPython.Source -3 -m venv (Join-Path $projectDir ".venv")
+    } else {
+        & $systemPython.Source -m venv (Join-Path $projectDir ".venv")
+    }
+    if ($LASTEXITCODE -ne 0) { throw "Could not create the build environment." }
 }
 
 & $pythonExe -m pip install --disable-pip-version-check --upgrade -r (Join-Path $projectDir "requirements-dev.txt")
@@ -35,4 +43,4 @@ if (-not $iscc) { throw "Inno Setup 6 was not found. Install it or use .\build.p
 
 & $iscc (Join-Path $projectDir "installer\HFDownloader.iss")
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed." }
-Write-Host "Ready: release\HF-Downloader-Setup-1.1.1.exe" -ForegroundColor Green
+Write-Host "Ready: release\HF-Downloader-Setup-1.1.2.exe" -ForegroundColor Green

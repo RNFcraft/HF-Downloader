@@ -16,7 +16,15 @@
 
 ## Запуск из исходников
 
-Дважды нажмите `Install-and-Run.bat`. Launcher создаст локальную `.venv`, установит зависимости и откроет приложение. Требуются Python 3.10+ и Microsoft Edge WebView2 Runtime. В Windows 10/11 WebView2 обычно уже установлен.
+Для разработки создайте виртуальное окружение, установите зависимости и запустите приложение:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe main.py
+```
+
+Требуются Python 3.10+ и Microsoft Edge WebView2 Runtime. В Windows 10/11 WebView2 обычно уже установлен.
 
 Поддерживаемые адреса:
 
@@ -39,7 +47,7 @@
 1. устанавливает build-зависимости;
 2. запускает тесты;
 3. создаёт PyInstaller onedir bundle в `dist\HF Downloader`;
-4. собирает установщик `release\HF-Downloader-Setup-1.1.1.exe`.
+4. собирает установщик `release\HF-Downloader-Setup-1.1.2.exe` с выбором каталога установки.
 
 Для проверки только скомпилированного приложения без установщика:
 
