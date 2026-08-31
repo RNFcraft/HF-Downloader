@@ -1,56 +1,61 @@
 # HF Downloader
 
-Графический загрузчик моделей, датасетов, Spaces, отдельных файлов и подпапок с Hugging Face.
+Настольный загрузчик моделей, датасетов, Spaces, отдельных файлов и папок с Hugging Face. Интерфейс построен на HTML/CSS/JavaScript и открывается в лёгком нативном окне Microsoft Edge WebView2; надёжное Python-ядро работает локально и не поднимает публичный веб-сервер.
 
-После ввода ссылки приложение показывает список файлов репозитория с размерами.
-Отметьте нужные файлы галочками — планирование, проверка места и загрузка будут
-выполнены только для выбранных путей. Доступны поиск, выбор всех и снятие всех
-галочек.
+## Возможности
 
-## Запуск
+- web-ссылки, `hf://` URI и короткие ID `author/repository`;
+- предварительный список файлов с поиском и выбором;
+- точный dry-run и проверка свободного места;
+- параллельная загрузка через официальный `huggingface_hub`;
+- Auto, Xet Adaptive, Xet Conservative и Plain HTTP;
+- retry, resume, heartbeat, stall detection и Xet fallback;
+- прогресс активных файлов, скорость и ETA;
+- безопасная остановка с сохранением partial-файлов;
+- token хранится только в памяти процесса.
 
-Дважды нажмите **Install-and-Run.bat**. Launcher:
+## Запуск из исходников
 
-1. найдёт Python 3.10+;
-2. создаст локальное окружение **.venv** внутри проекта;
-3. проверит и обновит необходимые зависимости;
-4. создаст стандартную папку **D:\projects\aiagent\hf_models**;
-5. откроет интерфейс.
+Дважды нажмите `Install-and-Run.bat`. Launcher создаст локальную `.venv`, установит зависимости и откроет приложение. Требуются Python 3.10+ и Microsoft Edge WebView2 Runtime. В Windows 10/11 WebView2 обычно уже установлен.
 
-Ничего не устанавливается глобально, кроме уже имеющегося Python.
+Поддерживаемые адреса:
 
-## Поддерживаемые адреса
+- `https://huggingface.co/author/model`
+- `https://huggingface.co/datasets/author/dataset`
+- ссылки `blob`, `resolve` и `tree`
+- `hf://datasets/author/dataset`
+- `author/repository`
 
-- https://huggingface.co/author/model
-- https://huggingface.co/datasets/author/dataset
-- ссылка на вкладку blob, resolve или tree;
-- hf://datasets/author/dataset;
-- короткий ID author/repository.
+## Сборка Windows
 
-По умолчанию репозиторий устанавливается в отдельную папку
-**D:\projects\aiagent\hf_models\author--repository**.
+Установите [Inno Setup 6](https://jrsoftware.org/isinfo.php), затем выполните:
 
-## Надёжность
+```powershell
+.\build.ps1
+```
 
-- предварительное получение списка файлов и проверка свободного места;
-- параллельная загрузка средствами официального huggingface_hub;
-- четыре transport-профиля: Auto, Xet Adaptive, Xet Conservative и Plain HTTP;
-- последовательная Xet-реконструкция для HDD;
-- Auto fallback на Plain HTTP после двух подтверждённых Xet stall;
-- worker heartbeat с различением «нет роста файла» и реального зависания;
-- отдельный текстовый прогресс каждого активного файла: скачано / размер / процент;
-- сохранение готовых и незавершённых блоков;
-- автоматические повторные попытки после сетевой ошибки;
-- обнаружение отсутствия прогресса;
-- безопасная остановка с возможностью продолжения;
-- token хранится только в памяти и не записывается в settings.json.
+Скрипт:
 
-Для большого HDD-файла не рекомендуется ставить больше четырёх workers.
+1. устанавливает build-зависимости;
+2. запускает тесты;
+3. создаёт PyInstaller onedir bundle в `dist\HF Downloader`;
+4. собирает установщик `release\HF-Downloader-Setup-1.1.1.exe`.
 
-Не удаляйте папку **.cache\huggingface** внутри загруженного репозитория до полного
-завершения: там находятся метаданные для эффективного продолжения.
+Для проверки только скомпилированного приложения без установщика:
 
-## Приватные и gated-репозитории
+```powershell
+.\build.ps1 -SkipInstaller
+```
 
-Сначала примите условия доступа на странице репозитория, затем вставьте read-token
-в поле **HF TOKEN**. Token не отображается и не сохраняется.
+Onedir выбран намеренно: приложение запускается быстрее, не распаковывает Python во временный каталог при каждом старте и лучше подходит как содержимое обычного установщика.
+
+## Структура
+
+- `hf_downloader/app.py` — bridge между web-интерфейсом и Python;
+- `hf_downloader/web/` — HTML, CSS и JavaScript;
+- `hf_downloader/downloader.py` — планирование, retry и lifecycle;
+- `hf_downloader/worker.py` — изолированный процесс загрузки;
+- `HFDownloader.spec` — конфигурация PyInstaller;
+- `installer/HFDownloader.iss` — проект установщика Inno Setup.
+
+Пользовательские настройки сохраняются атомарно в `%LOCALAPPDATA%\HF Downloader\settings.json`. Token туда не записывается.

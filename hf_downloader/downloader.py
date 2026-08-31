@@ -426,10 +426,12 @@ class DownloadManager:
                 manifest_path = Path(manifest.name)
             with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".heartbeat.json", delete=False) as heartbeat:
                 heartbeat_path = Path(heartbeat.name)
-            command = [
-                sys.executable,
-                "-m",
-                "hf_downloader.worker",
+            command = [sys.executable]
+            if getattr(sys, "frozen", False):
+                command.append("--worker")
+            else:
+                command.extend(["-m", "hf_downloader.worker"])
+            command.extend([
                 "--repo-id",
                 source.repo_id,
                 "--repo-type",
@@ -446,7 +448,7 @@ class DownloadManager:
                 str(heartbeat_path),
                 "--total-bytes",
                 str(plan.total_bytes),
-            ]
+            ])
             child_env = build_worker_environment(
                 os.environ,
                 options["transport"],

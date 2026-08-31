@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HF Downloader</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand-mark" aria-hidden="true">HF</div>
+      <div class="brand-copy">
+        <strong>HF Downloader</strong>
+        <span>Модели и датасеты без лишней сложности</span>
+      </div>
+      <div id="connection" class="connection"><i></i><span>Запуск локального ядра…</span></div>
+    </header>
+
+    <main class="layout">
+      <section class="workspace">
+        <article class="card source-card">
+          <div class="step-heading"><span>01</span><div><h1>Источник</h1><p>Вставьте ссылку Hugging Face или ID вида author/repository.</p></div></div>
+          <div class="source-row">
+            <div class="input-wrap grow">
+              <label for="source-url">Ссылка или ID</label>
+              <input id="source-url" autocomplete="off" spellcheck="false" placeholder="https://huggingface.co/author/model">
+            </div>
+            <div class="input-wrap type-select">
+              <label for="repo-type">Тип</label>
+              <select id="repo-type">
+                <option value="auto">Авто</option><option value="model">Модель</option>
+                <option value="dataset">Датасет</option><option value="space">Space</option>
+              </select>
+            </div>
+            <button id="inspect" class="primary source-action">Получить файлы</button>
+          </div>
+          <div id="source-meta" class="source-meta hidden"></div>
+        </article>
+
+        <article class="card files-card">
+          <div class="card-title-row">
+            <div class="step-heading compact"><span>02</span><div><h2>Файлы</h2><p id="file-summary">Сначала укажите источник</p></div></div>
+            <div class="file-actions">
+              <button id="select-all" class="quiet">Выбрать всё</button>
+              <button id="clear-all" class="quiet">Снять всё</button>
+            </div>
+          </div>
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"/></svg>
+            <input id="file-search" placeholder="Поиск по имени или папке" disabled>
+          </div>
+          <div id="files" class="file-list empty-state">
+            <div class="empty-icon">↓</div><strong>Здесь появится содержимое репозитория</strong>
+            <span>Можно выбрать весь репозиторий или только нужные веса и конфигурации.</span>
+          </div>
+        </article>
+
+        <article id="progress-card" class="card progress-card hidden">
+          <div class="card-title-row"><div><span class="eyebrow">ЗАГРУЗКА</span><h2 id="progress-title">Подготовка…</h2></div><button id="stop" class="danger">Остановить</button></div>
+          <div class="progress-track"><div id="progress-bar"></div></div>
+          <div class="progress-main"><strong id="progress-percent">0%</strong><span id="progress-bytes">0 Б из —</span></div>
+          <div class="metrics">
+            <div><span>Скорость</span><strong id="speed">—</strong></div>
+            <div><span>Средняя</span><strong id="average-speed">—</strong></div>
+            <div><span>Осталось</span><strong id="eta">—</strong></div>
+            <div><span>Файлы</span><strong id="files-done">—</strong></div>
+            <div><span>Попытка</span><strong id="attempt-value">—</strong></div>
+            <div><span>Транспорт</span><strong id="active-transport">—</strong></div>
+            <div><span>Worker</span><strong id="worker-state">—</strong></div>
+            <div><span>Heartbeat</span><strong id="heartbeat">—</strong></div>
+          </div>
+          <div class="current-file"><span>Текущий файл</span><strong id="current-file">—</strong></div>
+          <div id="active-files" class="active-files"></div>
+          <details class="event-log-wrap" open><summary>Журнал событий</summary><div id="event-log" class="event-log"></div></details>
+        </article>
+      </section>
+
+      <aside class="sidebar">
+        <article class="card sticky">
+          <div class="step-heading compact"><span>03</span><div><h2>Параметры</h2><p>Куда и как скачивать</p></div></div>
+          <div class="field-stack">
+            <label for="destination">Папка назначения</label>
+            <div class="destination-row"><input id="destination" spellcheck="false"><button id="browse" title="Выбрать папку">•••</button></div>
+          </div>
+          <label class="switch-row"><span><strong>Отдельная подпапка</strong><small>Безопасно отделяет репозиторий</small></span><input id="subfolder" type="checkbox" checked><i></i></label>
+          <div class="two-cols">
+            <div class="field-stack"><label for="workers">Потоки</label><input id="workers" type="number" min="1" max="8" value="4"></div>
+            <div class="field-stack"><label for="retries">Повторы</label><input id="retries" type="number" min="0" max="10" value="6"></div>
+          </div>
+          <div class="field-stack"><label>Транспорт загрузки</label>
+            <div id="transport-options" class="transport-options">
+              <label class="transport-choice"><input type="radio" name="transport" value="auto" checked><span><strong>Auto</strong><small>Xet с переходом на HTTP при зависании</small></span></label>
+              <label class="transport-choice"><input type="radio" name="transport" value="xet_adaptive"><span><strong>Xet Adaptive</strong><small>Быстрый адаптивный режим</small></span></label>
+              <label class="transport-choice"><input type="radio" name="transport" value="xet_conservative"><span><strong>Xet Conservative</strong><small>Последовательная запись для HDD</small></span></label>
+              <label class="transport-choice"><input type="radio" name="transport" value="plain_http"><span><strong>Plain HTTP</strong><small>Без Xet, максимальная совместимость</small></span></label>
+            </div>
+          </div>
+          <div class="field-stack"><label for="timeout">Нет активности, сек</label><input id="timeout" type="number" min="60" max="1800" value="600"></div>
+          <details open>
+            <summary>Дополнительные параметры</summary>
+            <div class="field-stack"><label for="token">HF token <em>не сохраняется</em></label><input id="token" type="password" autocomplete="off" placeholder="hf_••••••••"></div>
+            <div class="field-stack"><label for="exclude">Исключить маски</label><input id="exclude" placeholder="*.md, images/*"></div>
+          </details>
+          <div class="selection-total"><span>Выбрано</span><strong id="selected-total">0 файлов · 0 Б</strong></div>
+          <button id="download" class="primary download-button" disabled><span>Начать загрузку</span><b>→</b></button>
+          <button id="open-folder" class="secondary">Открыть папку</button>
+          <p id="sidebar-hint" class="hint">Получите список и отметьте нужные файлы.</p>
+        </article>
+      </aside>
+    </main>
+    <div id="toast" class="toast" role="status"></div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

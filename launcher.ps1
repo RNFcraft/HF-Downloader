@@ -45,7 +45,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Warning "Using installed dependencies; update will be retried on the next launch."
 }
 
-$defaultDestination = "D:\projects\aiagent\hf_models"
+$defaultDestination = Join-Path $env:USERPROFILE "Downloads\HuggingFace"
 if (-not (Test-Path -LiteralPath $defaultDestination)) {
     New-Item -ItemType Directory -Path $defaultDestination -Force | Out-Null
 }

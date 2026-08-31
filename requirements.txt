@@ -2,3 +2,4 @@ huggingface_hub>=0.34,<2
 hf-xet>=1.1,<2
 certifi>=2025.1
 psutil>=6,<8
+pywebview>=6.1,<7
