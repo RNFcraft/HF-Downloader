@@ -2,7 +2,7 @@ a = Analysis(
     ["main.py"],
     pathex=[],
     binaries=[],
-    datas=[("hf_downloader/web", "hf_downloader/web")],
+    datas=[("hf_downloader/web", "hf_downloader/web"), ("VERSION", ".")],
     hiddenimports=["hf_downloader.worker"],
     hookspath=[],
     hooksconfig={},

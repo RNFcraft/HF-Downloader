@@ -4,6 +4,10 @@ $ErrorActionPreference = "Stop"
 $projectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $pythonExe = Join-Path $projectDir ".venv\Scripts\python.exe"
 Set-Location -LiteralPath $projectDir
+$version = (Get-Content -LiteralPath (Join-Path $projectDir "VERSION") -Raw).Trim()
+if ($version -notmatch '^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$') {
+    throw "VERSION does not contain a valid semantic version: $version"
+}
 
 if (-not (Test-Path -LiteralPath $pythonExe)) {
     $systemPython = Get-Command python.exe -ErrorAction SilentlyContinue
@@ -41,6 +45,13 @@ $compilerCandidates = @(
 $iscc = $compilerCandidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
 if (-not $iscc) { throw "Inno Setup 6 was not found. Install it or use .\build.ps1 -SkipInstaller." }
 
-& $iscc (Join-Path $projectDir "installer\HFDownloader.iss")
+& $iscc "/DAppVersion=$version" (Join-Path $projectDir "installer\HFDownloader.iss")
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed." }
-Write-Host "Ready: release\HF-Downloader-Setup-1.1.2.exe" -ForegroundColor Green
+$installerName = "HF-Downloader-Setup-$version.exe"
+$installerPath = Join-Path $projectDir "release\$installerName"
+if (-not (Test-Path -LiteralPath $installerPath)) { throw "Installer was not created: $installerPath" }
+$checksum = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$checksumPath = "$installerPath.sha256"
+[IO.File]::WriteAllText($checksumPath, "$checksum  $installerName`r`n", [Text.UTF8Encoding]::new($false))
+Write-Host "Ready: release\$installerName" -ForegroundColor Green
+Write-Host "SHA-256: release\$installerName.sha256" -ForegroundColor Green

@@ -1,5 +1,7 @@
 #define AppName "HF Downloader"
-#define AppVersion "1.1.2"
+#ifndef AppVersion
+  #error AppVersion must be supplied by build.ps1
+#endif
 #define AppPublisher "HF Downloader"
 #define AppExeName "HF Downloader.exe"
 
@@ -22,6 +24,9 @@ ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 UninstallDisplayIcon={app}\{#AppExeName}
 SetupLogging=yes
+CloseApplications=yes
+RestartApplications=yes
+UsePreviousAppDir=yes
 
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"

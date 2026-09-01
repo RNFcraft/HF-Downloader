@@ -14,6 +14,7 @@
         <strong>HF Downloader</strong>
         <span>Модели и датасеты без лишней сложности</span>
       </div>
+      <button id="update-badge" class="update-badge hidden">Доступно обновление</button>
       <div id="connection" class="connection"><i></i><span>Запуск локального ядра…</span></div>
     </header>
 
@@ -102,6 +103,11 @@
             <div class="field-stack"><label for="token">HF token <em>не сохраняется</em></label><input id="token" type="password" autocomplete="off" placeholder="hf_••••••••"></div>
             <div class="field-stack"><label for="exclude">Исключить маски</label><input id="exclude" placeholder="*.md, images/*"></div>
           </details>
+          <section class="update-settings">
+            <div class="update-settings-head"><div><span>Обновления</span><strong>Версия <b id="app-version">—</b></strong></div><button id="check-update" class="quiet">Проверить</button></div>
+            <label class="switch-row compact-switch"><span><strong>Проверять автоматически</strong><small>Не чаще одного раза в 6 часов</small></span><input id="auto-update-check" type="checkbox" checked><i></i></label>
+            <p id="update-settings-status">Проверка выполняется в фоне и не мешает загрузкам.</p>
+          </section>
           <div class="selection-total"><span>Выбрано</span><strong id="selected-total">0 файлов · 0 Б</strong></div>
           <button id="download" class="primary download-button" disabled><span>Начать загрузку</span><b>→</b></button>
           <button id="open-folder" class="secondary">Открыть папку</button>
@@ -110,6 +116,34 @@
       </aside>
     </main>
     <div id="toast" class="toast" role="status"></div>
+  </div>
+  <div id="update-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="update-title">
+    <section class="update-dialog">
+      <button id="update-close" class="modal-close" aria-label="Закрыть">×</button>
+      <span class="eyebrow">ОБНОВЛЕНИЕ ПРИЛОЖЕНИЯ</span>
+      <h2 id="update-title">Доступна новая версия</h2>
+      <p id="update-version-line" class="update-version-line"></p>
+      <div class="changelog-title">Что нового</div>
+      <pre id="update-changelog" class="update-changelog"></pre>
+      <div id="update-progress" class="update-progress hidden">
+        <div class="progress-track"><div id="update-progress-bar"></div></div>
+        <div class="update-progress-meta"><strong id="update-progress-percent">0%</strong><span id="update-progress-bytes">0 Б из —</span></div>
+      </div>
+      <p id="update-message" class="update-message"></p>
+      <div id="update-conflict" class="update-conflict hidden">
+        <strong>Сейчас выполняется загрузка Hugging Face.</strong>
+        <span>Остановить её с сохранением partial-файлов и запустить обновление?</span>
+      </div>
+      <div class="modal-actions">
+        <button id="update-later" class="quiet">Позже</button>
+        <button id="update-ignore" class="quiet">Пропустить версию</button>
+        <button id="update-release" class="quiet hidden">Открыть GitHub</button>
+        <button id="update-cancel" class="danger hidden">Отменить скачивание</button>
+        <button id="update-download" class="primary">Скачать обновление</button>
+        <button id="update-install" class="primary hidden">Установить сейчас</button>
+        <button id="update-stop-install" class="danger hidden">Остановить и обновить</button>
+      </div>
+    </section>
   </div>
   <script src="app.js"></script>
 </body>

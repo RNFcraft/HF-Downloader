@@ -6,6 +6,7 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -19,12 +20,14 @@ from .downloader import (
     list_repository_files,
 )
 from .models import HubSource, destination_for, parse_huggingface_source
+from .updater import CHECK_INTERVAL_SECONDS, UpdateError, UpdateManager
+from .version import APP_VERSION
 
 
 WEB_DIR = Path(__file__).resolve().parent / "web"
 DEFAULT_DESTINATION = Path.home() / "Downloads" / "HuggingFace"
 DEFAULT_SETTINGS: dict[str, Any] = {
-    "settings_version": 3,
+    "settings_version": 4,
     "destination": str(DEFAULT_DESTINATION),
     "repo_type": "auto",
     "create_subfolder": True,
@@ -33,7 +36,11 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "stall_timeout": 600,
     "transport": "auto",
     "exclude": "",
+    "check_for_updates": True,
+    "ignored_update_version": None,
+    "last_update_check": None,
 }
+_SETTINGS_LOCK = threading.RLock()
 
 
 def _settings_file() -> Path:
@@ -53,15 +60,16 @@ def _bounded_int(value: object, default: int, minimum: int, maximum: int) -> int
 def load_settings(path: Path | None = None) -> dict[str, Any]:
     target = path or _settings_file()
     stored: dict[str, Any] = {}
-    try:
-        value = json.loads(target.read_text(encoding="utf-8"))
-        if isinstance(value, dict):
-            stored = value
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        pass
+    with _SETTINGS_LOCK:
+        try:
+            value = json.loads(target.read_text(encoding="utf-8"))
+            if isinstance(value, dict):
+                stored = value
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
+            pass
 
     settings = DEFAULT_SETTINGS | stored
-    settings["settings_version"] = 3
+    settings["settings_version"] = 4
     settings["workers"] = _bounded_int(settings.get("workers"), 4, 1, 8)
     settings["retries"] = _bounded_int(settings.get("retries"), 6, 0, 10)
     settings["stall_timeout"] = _bounded_int(settings.get("stall_timeout"), 600, 60, 1800)
@@ -70,15 +78,31 @@ def load_settings(path: Path | None = None) -> dict[str, Any]:
     settings["destination"] = str(settings.get("destination") or DEFAULT_DESTINATION)
     settings["create_subfolder"] = bool(settings.get("create_subfolder", True))
     settings["exclude"] = str(settings.get("exclude") or "")
+    settings["check_for_updates"] = bool(settings.get("check_for_updates", True))
+    ignored = settings.get("ignored_update_version")
+    settings["ignored_update_version"] = str(ignored) if ignored else None
+    try:
+        settings["last_update_check"] = float(settings["last_update_check"]) if settings.get("last_update_check") else None
+    except (TypeError, ValueError):
+        settings["last_update_check"] = None
     return settings
 
 
 def save_settings(settings: dict[str, Any], path: Path | None = None) -> None:
     target = path or _settings_file()
-    target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = target.with_suffix(".json.tmp")
-    temporary.write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(temporary, target)
+    with _SETTINGS_LOCK:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary = target.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(temporary, target)
+
+
+def update_settings(changes: dict[str, Any], path: Path | None = None) -> dict[str, Any]:
+    with _SETTINGS_LOCK:
+        settings = load_settings(path)
+        settings.update(changes)
+        save_settings(settings, path)
+        return settings
 
 
 def _source_payload(source: HubSource) -> dict[str, Any]:
@@ -102,12 +126,15 @@ class DesktopApi:
         self._lock = threading.RLock()
         self._selected_source: HubSource | None = None
         self._available_files: dict[str, int] = {}
+        self._updater = UpdateManager()
+        self._updater.cleanup_old_update_files()
 
     def initial_state(self) -> dict[str, Any]:
         return {
             "settings": load_settings(),
             "transports": [{"value": key, "label": label} for key, label in TRANSPORT_LABELS.items()],
-            "version": "1.1.2",
+            "version": APP_VERSION,
+            "update": self._updater.status(),
         }
 
     def inspect_source(self, value: str, repo_type: str = "auto", token: str = "") -> dict[str, Any]:
@@ -158,8 +185,8 @@ class DesktopApi:
                 transport = "auto"
             exclude_text = str(options.get("exclude", ""))
             excludes = [part.strip() for part in exclude_text.split(",") if part.strip()]
-            settings = {
-                "settings_version": 3,
+            update_settings({
+                "settings_version": 4,
                 "destination": root,
                 "repo_type": source.repo_type if str(options.get("repo_type")) != "auto" else "auto",
                 "create_subfolder": create_subfolder,
@@ -168,8 +195,7 @@ class DesktopApi:
                 "stall_timeout": timeout,
                 "transport": transport,
                 "exclude": exclude_text,
-            }
-            save_settings(settings)
+            })
             self._manager.start(
                 source,
                 destination,
@@ -198,6 +224,64 @@ class DesktopApi:
             self._manager.cancel()
         return {"ok": True}
 
+    def check_for_updates(self, manual: bool = False) -> dict[str, Any]:
+        settings = load_settings()
+        if not manual:
+            if not settings["check_for_updates"]:
+                return {"ok": True, "started": False, "disabled": True}
+            last_check = settings.get("last_update_check")
+            if last_check and time.time() - float(last_check) < CHECK_INTERVAL_SECONDS:
+                return {"ok": True, "started": False, "throttled": True}
+        started = self._updater.start_check(
+            manual=bool(manual),
+            ignored_version=settings.get("ignored_update_version"),
+        )
+        if started:
+            update_settings({"last_update_check": time.time()})
+        return {"ok": True, "started": started}
+
+    def get_update_status(self) -> dict[str, Any]:
+        return self._updater.status()
+
+    def download_update(self) -> dict[str, Any]:
+        started = self._updater.start_download()
+        return {"ok": started, "error": None if started else "Обновление сейчас нельзя скачать."}
+
+    def cancel_update_download(self) -> dict[str, Any]:
+        return {"ok": self._updater.cancel_download()}
+
+    def set_update_preferences(self, check_for_updates: bool) -> dict[str, Any]:
+        update_settings({"check_for_updates": bool(check_for_updates)})
+        return {"ok": True}
+
+    def ignore_update(self, version: str) -> dict[str, Any]:
+        normalized = str(version).strip()
+        update_settings({"ignored_update_version": normalized or None})
+        self._updater.dismiss(normalized)
+        return {"ok": True}
+
+    def open_update_release(self) -> dict[str, Any]:
+        return {"ok": self._updater.open_release()}
+
+    def install_update(self, stop_download: bool = False) -> dict[str, Any]:
+        if self._manager.active and not stop_download:
+            return {"ok": False, "requires_download_stop": True}
+        try:
+            if self._manager.active:
+                stopped = self._manager.shutdown(timeout=12)
+                if not stopped:
+                    return {"ok": False, "error": "Не удалось безопасно остановить текущую загрузку."}
+            self._updater.launch_installer()
+            threading.Thread(target=self._close_after_installer_launch, name="update-exit", daemon=True).start()
+            return {"ok": True}
+        except UpdateError as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def _close_after_installer_launch(self) -> None:
+        time.sleep(0.8)
+        if self._window is not None:
+            self._window.destroy()
+
     def open_destination(self, path: str) -> dict[str, Any]:
         try:
             target = Path(path).expanduser()
@@ -213,6 +297,7 @@ class DesktopApi:
             return {"ok": False, "error": str(exc)}
 
     def shutdown(self) -> None:
+        self._updater.shutdown(timeout=3)
         if self._manager.active:
             self._manager.shutdown(timeout=12)
 

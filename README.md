@@ -13,6 +13,7 @@
 - прогресс активных файлов, скорость и ETA;
 - безопасная остановка с сохранением partial-файлов;
 - token хранится только в памяти процесса.
+- фоновая проверка стабильных GitHub Releases, changelog, отменяемая загрузка обновления и SHA-256 verification;
 
 ## Запуск из исходников
 
@@ -47,7 +48,8 @@ python -m venv .venv
 1. устанавливает build-зависимости;
 2. запускает тесты;
 3. создаёт PyInstaller onedir bundle в `dist\HF Downloader`;
-4. собирает установщик `release\HF-Downloader-Setup-1.1.2.exe` с выбором каталога установки.
+4. читает версию из `VERSION` и собирает установщик `release\HF-Downloader-Setup-<version>.exe` с выбором каталога установки;
+5. создаёт рядом файл `HF-Downloader-Setup-<version>.exe.sha256`.
 
 Для проверки только скомпилированного приложения без установщика:
 
@@ -65,5 +67,8 @@ Onedir выбран намеренно: приложение запускает�
 - `hf_downloader/worker.py` — изолированный процесс загрузки;
 - `HFDownloader.spec` — конфигурация PyInstaller;
 - `installer/HFDownloader.iss` — проект установщика Inno Setup.
+- `VERSION` — единственный источник версии приложения и installer;
+- `hf_downloader/updater.py` — независимая state machine обновлений;
+- `UPDATER.md` — выпуск релизов, поток обновления и тестирование.
 
 Пользовательские настройки сохраняются атомарно в `%LOCALAPPDATA%\HF Downloader\settings.json`. Token туда не записывается.
